@@ -8,14 +8,14 @@ import numpy as np
 import pandas as pd
 import json
 
-def train(model, tokenizer, train_json, test_json, classes, 
-          n_data, batch_size, seed, max_length, class_weights: list, lr, n_epochs,
+# change
+def train(model, tokenizer, record_list_train, record_list_test, classes, 
+          batch_size, seed, max_length, class_weights: list, lr, n_epochs,
           plot=True, save_model=True, save_results=True):
-    folder = f'{date.today()}_n_{n_data}_b_{batch_size}_s_{seed}_l_{max_length}_w_{class_weights}_l_{lr}'
+    folder = f'{date.today()}_b_{batch_size}_s_{seed}_l_{max_length}_w_{class_weights}_l_{lr}'
     os.makedirs(f'saved_models/{folder}', exist_ok=True)
-    # change
-    data_batches, target_batches, att_mask_batches = ut.preprocess(json_file=train_json, classes=classes, tokenizer=tokenizer, 
-                                                                   n_data=n_data, batch_size=batch_size, max_length=max_length, test=False)
+    data_batches, target_batches, att_mask_batches = ut.preprocess(record_list=record_list_train, classes=classes, tokenizer=tokenizer, 
+                                                                   batch_size=batch_size, max_length=max_length, test=False)
     weights = torch.tensor(class_weights)
     weights_n = weights / torch.norm(weights)
     weights_n = torch.cat((weights_n, torch.tensor([0])))  # weights for padding = 0
@@ -25,7 +25,7 @@ def train(model, tokenizer, train_json, test_json, classes,
     train_losses = []
     train_accuracies = []
     train_precisions, train_recalls, train_f1s = [], [], []
-    if test_json != None:
+    if record_list_test != None:
         test_accuracies = []
         test_precisions, test_recalls, test_f1s = [], [], []
     for epoch in range(n_epochs):
@@ -63,8 +63,8 @@ def train(model, tokenizer, train_json, test_json, classes,
         print(f'Mean training precision: {train_precision_batch_mean:.4f}')
         print(f'Mean training recall: {train_recall_batch_mean:.4f}')
         print(f'Mean training f1: {train_f1_batch_mean:.4f}')
-        if test_json != None:
-            precision_test, recall_test, f1_test, acc_test, pred_classes, true_classes, pred_all, true_all, data_list = testing(model, test_json, classes, tokenizer, max_length)
+        if record_list_test != None:
+            precision_test, recall_test, f1_test, acc_test, pred_classes, true_classes, pred_all, true_all, record_list = testing(model, record_list_test, classes, tokenizer, max_length)
             test_accuracies.append(acc_test)
             test_precisions.append(precision_test)
             test_recalls.append(recall_test)
@@ -84,7 +84,7 @@ def train(model, tokenizer, train_json, test_json, classes,
         model_name = f'{folder}/{folder}_e_{epoch}'
         if save_model:             
             torch.save(model.state_dict(), f"saved_models/{model_name}.pt")
-        for sample_id, d in enumerate(data_list):
+        for sample_id, d in enumerate(record_list):
             words_test = d['words']
             labels_test = true_all[sample_id][:len(words_test)].tolist()
             pred_test = pred_all[sample_id, :, :].max(dim=0)[1][:len(words_test)].tolist()
@@ -98,7 +98,7 @@ def train(model, tokenizer, train_json, test_json, classes,
         train_precisions_np = np.array(train_precisions)
         train_recalls_np = np.array(train_recalls)
         train_f1s_np = np.array(train_f1s)
-        if test_json != None:
+        if record_list_test != None:
             test_accuracies_np = np.array(test_accuracies)
             test_precisions_np = np.array(test_precisions)
             test_recalls_np = np.array(test_recalls)
@@ -122,19 +122,19 @@ def train(model, tokenizer, train_json, test_json, classes,
         ax1.set_ylabel("loss", fontsize=12)
 
         ax2.plot(range(1, n_epochs + 1), train_precisions, 'o-', c='blue', label='training')
-        if test_json != None:
+        if record_list_test != None:
             ax2.plot(range(1, n_epochs + 1), test_precisions, 'o-', c='green', label='test')
         ax2.legend(fontsize=12)
         ax2.set_ylabel("precision", fontsize=12)
 
         ax3.plot(range(1, n_epochs + 1), train_recalls, 'o-', c='blue', label='training')
-        if test_json != None:
+        if record_list_test != None:
             ax3.plot(range(1, n_epochs + 1), test_recalls, 'o-', c='green', label='test')
         ax3.legend(fontsize=12)
         ax3.set_ylabel("recall", fontsize=12)
 
         ax4.plot(range(1, n_epochs + 1), train_f1s, 'o-', c='blue', label='training')
-        if test_json != None:
+        if record_list_test != None:
             ax4.plot(range(1, n_epochs + 1), test_f1s, 'o-', c='green', label='test')
         ax4.legend(fontsize=12)
         ax4.set_xlabel("epoch", fontsize=12)
@@ -142,14 +142,14 @@ def train(model, tokenizer, train_json, test_json, classes,
 
         plt.show()
 
-    if test_json != None:
-        return model, train_losses, train_accuracies, precision_test, recall_test, f1_test, test_accuracies, pred_classes, true_classes, pred_all, true_all, data_list
+    if record_list_test != None:
+        return model, train_losses, train_accuracies, precision_test, recall_test, f1_test, test_accuracies, pred_classes, true_classes, pred_all, true_all, record_list
     else:
         return model, train_losses, train_accuracies
 
-def testing(model, json_file, classes, tokenizer, max_length):
-    data_test, target_test, att_mask_test, data_list = ut.preprocess(json_file, classes, tokenizer, 
-                                                          n_data=0, batch_size=0, max_length=max_length, test=True)
+def testing(model, record_list, classes, tokenizer, max_length):
+    data_test, target_test, att_mask_test, data_list = ut.preprocess(record_list, classes, tokenizer, 
+                                                          batch_size=0, max_length=max_length, test=True)
     with torch.no_grad():
         y_pred_test = model(data_test, attention_mask=att_mask_test)
         y_pred_test = torch.swapaxes(y_pred_test, 1, 2)
