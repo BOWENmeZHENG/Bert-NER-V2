@@ -13,7 +13,7 @@ def train(model, tokenizer, train_json, test_json, classes,
           plot=True, save_model=True, save_results=True):
     folder = f'{date.today()}_n_{n_data}_b_{batch_size}_s_{seed}_l_{max_length}_w_{class_weights}_l_{lr}'
     os.makedirs(f'saved_models/{folder}', exist_ok=True)
-
+    # change
     data_batches, target_batches, att_mask_batches = ut.preprocess(json_file=train_json, classes=classes, tokenizer=tokenizer, 
                                                                    n_data=n_data, batch_size=batch_size, max_length=max_length, test=False)
     weights = torch.tensor(class_weights)
