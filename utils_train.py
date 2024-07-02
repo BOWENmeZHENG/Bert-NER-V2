@@ -9,7 +9,7 @@ from sklearn.metrics import precision_score, recall_score, f1_score
 import sqlite3
 
 def split_para(para):
-    return re.findall(r"[\w]+|[-.,\'!=±?%–−;/\(\)\[\]]", para)
+    return re.findall(r"[\w]+|[-.,\'!=±?%–−;:/\(\)\[\]]", para)
     
 def text2token(tokenizer, text):
     text_list = tokenizer.tokenize(text)
